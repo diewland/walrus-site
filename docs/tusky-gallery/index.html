@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- jquery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js" integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
+    <!-- justified gallery -->
+    <script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.8.1/dist/js/jquery.justifiedGallery.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/justifiedGallery@3.8.1/dist/css/justifiedGallery.min.css">
+    <!-- lightgallery -->
+    <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.8.3/lightgallery.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.8.3/plugins/thumbnail/lg-thumbnail.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.8.3/plugins/zoom/lg-zoom.umd.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@2.8.3/css/lightgallery-bundle.min.css">
+    <!--link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@2.8.3/css/lg-thumbnail.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@2.8.3/css/lg-zoom.css"-->
+    <style> #gallery .item { cursor: pointer; } </style>
+  </head>
+  <body>
+    <div id="gallery"></div>
+    <script>
+      // require API_KEY and VAULT_ID
+      let params = new URLSearchParams(window.location.search);
+      const API_KEY = params.get('api_key');
+      const VAULT_ID = params.get('vault_id');
+
+      // apis
+      let root = document.getElementById('gallery');
+      async function get_blob(id) {
+        const response = await fetch('https://api.tusky.io/files/' + id + '/data', {
+          method: 'GET',
+          headers: { 'Api-Key': API_KEY },
+        });
+        return await response.blob();
+      }
+      async function list_vault_files(id) {
+        const resp = await fetch('https://api.tusky.io/files?vaultId=' + id, {
+          method: 'GET',
+          headers: { 'Api-Key': API_KEY },
+        });
+        return await resp.json();
+      }
+
+      // render
+      list_vault_files(VAULT_ID).then(resp => {
+        let items = resp.items || [];
+        let blobs = items.map(r => get_blob(r.id));
+        Promise.all(blobs).then(bb => {
+          bb.forEach((b, i) => {
+            let imgURL = URL.createObjectURL(b);
+            let img = new Image();
+            img.src = imgURL;
+            img.alt = items[i].name;
+            img.className = 'item';
+            // img -> a
+            let a = document.createElement('a')
+            a.setAttribute('data-src', img.src);
+            a.appendChild(img)
+            // a -> root
+            root.appendChild(a);
+          });
+        }).then(_ => {
+          $("#gallery")
+            .justifiedGallery({
+              //captions: false,
+              //lastRow: "hide",
+              rowHeight: 180,
+              margins: 5
+            })
+            .on("jg.complete", function () {
+              lightGallery(
+                $("#gallery")[0], {
+                  //autoplayFirstVideo: false,
+                  //pager: false,
+                  //galleryId: "nature",
+                  plugins: [lgZoom, lgThumbnail],
+                  //mobileSettings: {
+                  //  controls: false,
+                  //  showCloseIcon: false,
+                  //  download: false,
+                  //  rotate: false
+                  //}
+                }
+              );
+            });
+        })
+      });
+    </script>
+  </body>
+</html>
