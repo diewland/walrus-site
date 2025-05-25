@@ -1,0 +1,460 @@
+<script type="text/javascript">
+  var gk_isXlsx = false;
+  var gk_xlsxFileLookup = {};
+  var gk_fileData = {};
+  function filledCell(cell) {
+    return cell !== '' && cell != null;
+  }
+  function loadFileData(filename) {
+  if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+      try {
+          var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+          var firstSheetName = workbook.SheetNames[0];
+          var worksheet = workbook.Sheets[firstSheetName];
+
+          // Convert sheet to JSON to filter blank rows
+          var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+          // Filter out blank rows (rows where all cells are empty, null, or undefined)
+          var filteredData = jsonData.filter(row => row.some(filledCell));
+
+          // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+          var headerRowIndex = filteredData.findIndex((row, index) =>
+            row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+          );
+          // Fallback
+          if (headerRowIndex === -1 || headerRowIndex > 25) {
+            headerRowIndex = 0;
+          }
+
+          // Convert filtered JSON back to CSV
+          var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+          csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+          return csv;
+      } catch (e) {
+          console.error(e);
+          return "";
+      }
+  }
+  return gk_fileData[filename] || "";
+  }
+  </script><!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>APECOFT RADIO</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+* {
+margin: 0;
+padding: 0;
+box-sizing: border-box;
+font-family: 'Roboto', sans-serif;
+}
+
+body {
+background-color: #1e3a8a;
+color: white;
+min-height: 100vh;
+display: flex;
+flex-direction: column;
+}
+
+.navbar {
+display: flex;
+justify-content: space-between;
+align-items: center;
+padding: 20px;
+background-color: rgba(255, 255, 255, 0.1);
+}
+
+.navbar h1 {
+font-size: 1.5rem;
+font-weight: 700;
+}
+
+.navbar .buttons {
+display: flex;
+gap: 10px;
+}
+
+.navbar button {
+background-color: #f97316;
+color: white;
+border: none;
+padding: 10px 20px;
+border-radius: 5px;
+cursor: pointer;
+font-size: 1rem;
+font-weight: 500;
+}
+
+.navbar button:hover {
+background-color: #fb923c;
+}
+
+.latest-episode {
+padding: 40px 20px;
+max-width: 1200px;
+margin: 0 auto;
+display: grid;
+grid-template-columns: repeat(5, 1fr);
+gap: 20px;
+align-items: center;
+}
+
+.latest-episode .content {
+grid-column: 2 / 3;
+text-align: left;
+}
+
+.latest-episode h2 {
+font-size: 1.5rem;
+font-weight: 700;
+text-transform: uppercase;
+margin-bottom: 10px;
+white-space: nowrap;
+}
+
+.latest-episode p {
+font-size: 1rem;
+margin-bottom: 20px;
+color: rgba(255, 255, 255, 0.8);
+white-space: nowrap;
+}
+
+.latest-episode .audio-player {
+grid-column: 2 / 4;
+width: 100%;
+}
+
+.latest-episode .image {
+grid-column: 4 / 5;
+}
+
+.latest-episode .image img {
+width: 100%;
+max-width: 300px;
+height: auto;
+border-radius: 8px;
+object-fit: cover;
+}
+
+.audio-player {
+background-color: #1f2937;
+padding: 10px;
+border-radius: 5px;
+display: inline-flex;
+align-items: center;
+gap: 10px;
+width: 300px;
+}
+
+.audio-player button.play-pause {
+background-color: #f97316;
+border: none;
+border-radius: 50%;
+width: 40px;
+height: 40px;
+display: flex;
+align-items: center;
+justify-content: center;
+cursor: pointer;
+}
+
+.audio-player button svg {
+width: 20px;
+height: 20px;
+fill: white;
+}
+
+.audio-player .progress-bar {
+flex: 1;
+height: 5px;
+background-color: #4b5563;
+border-radius: 5px;
+position: relative;
+cursor: pointer;
+}
+
+.audio-player .progress-bar .progress {
+position: absolute;
+top: 0;
+left: 0;
+height: 100%;
+background-color: #f97316;
+border-radius: 5px;
+}
+
+.audio-player .time {
+font-size: 0.9rem;
+color: #d1d5db;
+}
+
+.audio-player .volume-btn {
+background: none;
+border: none;
+cursor: pointer;
+}
+
+.audio-player .volume {
+width: 20px;
+height: 20px;
+fill: #d1d5db;
+}
+
+.all-episodes {
+padding: 20px;
+background-color: #172554;
+flex: 1;
+}
+
+.all-episodes h3 {
+font-size: 1.5rem;
+font-weight: 700;
+text-transform: uppercase;
+margin-bottom: 20px;
+max-width: 1200px;
+margin-left: auto;
+margin-right: auto;
+}
+
+.all-episodes .episode-grid {
+max-width: 1200px;
+margin: 0 auto;
+}
+
+.episode-item {
+display: grid;
+grid-template-columns: repeat(7, 1fr);
+gap: 10px;
+align-items: center;
+background-color: #1e3a8a;
+padding: 10px;
+border-radius: 5px;
+margin-bottom: 10px;
+transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease; /* เพิ่ม transition เพื่อให้การเปลี่ยนแปลงนุ่มนวล */
+}
+
+.episode-item:hover {
+transform: translateY(-5px); /* ยกกล่องขึ้น 5px */
+box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); /* เพิ่มเงาใต้กล่อง */
+background-color: #2b4db3; /* เปลี่ยนสีพื้นหลังเล็กน้อยให้ดูเด่นขึ้น */
+}
+
+.episode-item img {
+grid-column: 1 / 2;
+width: 100px;
+height: 60px;
+object-fit: cover;
+border-radius: 5px;
+}
+
+.episode-item .details {
+grid-column: 2 / 4;
+}
+
+.episode-item .details h4 {
+font-size: 1.1rem;
+font-weight: 500;
+margin-bottom: 5px;
+}
+
+.episode-item .details p {
+font-size: 0.9rem;
+color: #d1d5db;
+}
+
+.episode-item .audio-player {
+grid-column: 4 / 8;
+width: 100%;
+}
+
+/* ซ่อน audio element */
+audio {
+display: none;
+}
+</style>
+</head>
+<body>
+<!-- Navbar -->
+<nav class="navbar">
+<h1>APECOFT RADIO</h1>
+<div class="buttons">
+<button>jigSUI</button>
+<button>Access Me</button>
+</div>
+</nav>
+
+<!-- Latest Episode -->
+<section class="latest-episode">
+<div class="content">
+<h2>Latest Episode</h2>
+<p>Cetus Protocal Event</p>
+</div>
+<div class="audio-player" data-audio-id="latest">
+<button class="play-pause">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M8 5v14l11-7z" />
+  </svg>
+</button>
+<span class="time current-time">00:00</span>
+<div class="progress-bar">
+  <div class="progress" style="width: 0%"></div>
+</div>
+<span class="time duration">06:45</span>
+<button class="volume-btn">
+  <svg class="volume" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77 0-4.28-2.99-7.86-7-8.77z" />
+  </svg>
+</button>
+<audio id="audio-latest" src="https://jigsaw-fam.github.io/jigsui-podcast/a1.wav"></audio>
+</div>
+<div class="image">
+<img src="a1.png" alt="Latest Episode Cover" />
+</div>
+</section>
+
+<!-- All Episodes -->
+<section class="all-episodes">
+<h3>All Episodes</h3>
+<div class="episode-grid">
+<div class="episode-item">
+  <img src="a1.png" alt="Episode 1" />
+  <div class="details">
+    <h4>Cetus Protocal Event</h4>
+    <p>25.05.2025 • #Cetus #Sui #Hack</p>
+  </div>
+  <div class="audio-player" data-audio-id="episode-1">
+    <button class="play-pause">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M8 5v14l11-7z" />
+      </svg>
+    </button>
+    <span class="time current-time">00:00</span>
+    <div class="progress-bar">
+      <div class="progress" style="width: 0%"></div>
+    </div>
+    <span class="time duration">06:45</span>
+    <button class="volume-btn">
+      <svg class="volume" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77 0-4.28-2.99-7.86-7-8.77z" />
+      </svg>
+    </button>
+    <audio id="audio-episode-1" src="https://jigsaw-fam.github.io/jigsui-podcast/a1.wav"></audio>
+  </div>
+</div>
+<div class="episode-item">
+  <img src="a2.png" alt="Episode 2" />
+  <div class="details">
+    <h4>Cetus Event - Governance</h4>
+    <p>25.05.2025 • #Cetus #Sui #Tech</p>
+  </div>
+  <div class="audio-player" data-audio-id="episode-2">
+    <button class="play-pause">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M8 5v14l11-7z" />
+      </svg>
+    </button>
+    <span class="time current-time">00:00</span>
+    <div class="progress-bar">
+      <div class="progress" style="width: 0%"></div>
+    </div>
+    <span class="time duration">04:57</span>
+    <button class="volume-btn">
+      <svg class="volume" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77 0-4.28-2.99-7.86-7-8.77z" />
+      </svg>
+    </button>
+    <audio id="audio-episode-2" src="https://jigsaw-fam.github.io/jigsui-podcast/a2.wav"></audio>
+  </div>
+</div>
+</div>
+</div>
+</section>
+
+<script>
+// รอให้ DOM โหลดเสร็จก่อนรันสคริปต์
+document.addEventListener('DOMContentLoaded', () => {
+// ฟังก์ชันแปลงเวลาเป็นรูปแบบ mm:ss
+function formatTime(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+// จัดการตัวเล่น audio แต่ละตัว
+document.querySelectorAll('.audio-player').forEach((player) => {
+  const audioId = player.getAttribute('data-audio-id');
+  const audio = document.getElementById(`audio-${audioId}`);
+  const playPauseBtn = player.querySelector('.play-pause');
+  const playPauseIcon = playPauseBtn ? playPauseBtn.querySelector('svg') : null;
+  const progressBar = player.querySelector('.progress');
+  const currentTime = player.querySelector('.current-time');
+  const duration = player.querySelector('.duration');
+  const progressContainer = player.querySelector('.progress-bar');
+  const volumeBtn = player.querySelector('.volume-btn');
+  const volumeIcon = volumeBtn ? volumeBtn.querySelector('.volume') : null;
+
+  // ตรวจสอบว่า element ทั้งหมดมีอยู่ก่อนดำเนินการ
+  if (!audio || !playPauseBtn || !playPauseIcon || !progressBar || !currentTime || !duration || !progressContainer || !volumeBtn || !volumeIcon) {
+    console.error(`Missing elements for audio player with ID: ${audioId}`);
+    return; // ข้ามการทำงานถ้า element ใด element หนึ่งหายไป
+  }
+
+  // ตั้งค่าเริ่มต้นเมื่อ audio โหลด
+  audio.addEventListener('loadedmetadata', () => {
+    duration.textContent = formatTime(audio.duration);
+    currentTime.textContent = formatTime(0);
+  });
+
+  // อัปเดตเวลาและแถบความคืบหน้า
+  audio.addEventListener('timeupdate', () => {
+    const current = audio.currentTime;
+    const percent = (current / audio.duration) * 100;
+    progressBar.style.width = `${percent}%`;
+    currentTime.textContent = formatTime(current);
+  });
+
+  // ควบคุมการเล่น/หยุด
+  playPauseBtn.addEventListener('click', () => {
+    if (audio.paused) {
+      audio.play();
+      playPauseIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />';
+    } else {
+      audio.pause();
+      playPauseIcon.innerHTML = '<path d="M8 5v14l11-7z" />';
+    }
+  });
+
+  // ข้ามไปยังตำแหน่งที่คลิกบนแถบความคืบหน้า
+  progressContainer.addEventListener('click', (e) => {
+    const rect = progressContainer.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const width = rect.width;
+    const percent = clickX / width;
+    audio.currentTime = percent * audio.duration;
+  });
+
+  // ควบคุมเสียง (เปิด/ปิด)
+  volumeBtn.addEventListener('click', () => {
+    if (audio.muted) {
+      audio.muted = false;
+      volumeIcon.innerHTML = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77 0-4.28-2.99-7.86-7-8.77z" />';
+    } else {
+      audio.muted = true;
+      volumeIcon.innerHTML = '<path d="M3 9v6h4l5 5V4L7 9H3zM16.5 12l-3-3M13.5 15l3-3" stroke="white" stroke-width="2" />';
+    }
+  });
+
+  // รีเซ็ตเมื่อเล่นจบ
+  audio.addEventListener('ended', () => {
+    playPauseIcon.innerHTML = '<path d="M8 5v14l11-7z" />';
+    progressBar.style.width = '0%';
+    currentTime.textContent = formatTime(0);
+  });
+});
+});
+</script>
+</body>
+</html>
